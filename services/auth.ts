@@ -26,6 +26,30 @@ export async function loginUser(email, password) {
   }
 }
 
+export async function signupUser(email, password) {
+  const SIGNUP_URL = "http://207.154.238.161/api/auth/signup";
+
+  try {
+    const response = await fetch(SIGNUP_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ email, password }),
+    });
+
+    const data = await response.json();
+
+    if (response.ok) {
+      return { success: true, data };
+    } else {
+      return { success: false, error: data.error || "Registration failed" };
+    }
+  } catch (error) {
+    return { success: false, error: "Network error ocurred" };
+  }
+}
+
 export async function getStoredTokens() {
   const accessToken = await SecureStore.getItemAsync("accessToken");
   const refreshToken = await SecureStore.getItemAsync("refreshToken");

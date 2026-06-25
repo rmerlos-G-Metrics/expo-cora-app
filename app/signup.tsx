@@ -1,41 +1,43 @@
-import { loginUser } from "@/services/auth";
+import { signupUser } from "@/services/auth";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-  Alert,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Alert,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 
-export default function LoginScreen() {
+export default function SignupScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
-  const handleLogin = async () => {
+  const handleSignup = async () => {
     if (!email || !password) {
       Alert.alert("Error", "Please fill in all fields");
       return;
     }
 
     setLoading(true);
-    const result = await loginUser(email, password);
+    const result = await signupUser(email, password);
     setLoading(false);
 
     if (result.success) {
-      router.replace("/home");
+      Alert.alert("Success", "Account created successfully!", [
+        { text: "Log In", onPress: () => router.replace("/login") },
+      ]);
     } else {
-      Alert.alert("Login failed", result.error);
+      Alert.alert("Registration failed", result.error);
     }
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Sign In</Text>
+      <Text style={styles.title}>Create Account</Text>
       <TextInput
         style={styles.input}
         placeholder="Email"
@@ -53,19 +55,19 @@ export default function LoginScreen() {
       />
       <TouchableOpacity
         style={styles.button}
-        onPress={handleLogin}
+        onPress={handleSignup}
         disabled={loading}
       >
         <Text style={styles.buttonText}>
-          {loading ? "Connecting..." : "Login"}
+          {loading ? "Creating Account..." : "Sign Up"}
         </Text>
       </TouchableOpacity>
 
       <TouchableOpacity
         style={styles.linkButton}
-        onPress={() => router.replace("/signup")}
+        onPress={() => router.replace("/login")}
       >
-        <Text style={styles.linkText}>Don't have an account? Sign Up</Text>
+        <Text style={styles.linkText}>Already have an account? Sign In</Text>
       </TouchableOpacity>
     </View>
   );
