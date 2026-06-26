@@ -15,6 +15,10 @@ export default function HomeScreen() {
     <View>
       <Text style={styles.welcomeText}>Login Successful!</Text>
       <Button title="Log Out" onPress={handleLogout} color="#ea3535"></Button>
+      <Button
+        title="Registe Device"
+        onPress={() => router.push("/register-device")}
+      ></Button>
     </View>
   );
 }
