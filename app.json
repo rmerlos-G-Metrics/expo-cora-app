@@ -53,7 +53,7 @@
       [
         "react-native-ble-manager",
         {
-          "neverForLocation": true,
+          "neverForLocation": false,
           "bluetoothPeripheralPermissionText": "Allow CORA to connect to readers.",
           "bluetoothAlwaysPermissionText": "Allow CORA to find and connect to your reader devices.",
           "fineLocationPermissionText": "Allow CORA to look for hardware nearby."
