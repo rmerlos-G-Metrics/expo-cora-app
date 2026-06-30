@@ -25,9 +25,8 @@
         "android.permission.BLUETOOTH_ADMIN",
         "android.permission.BLUETOOTH_CONNECT",
         "android.permission.BLUETOOTH",
-        "android.permission.BLUETOOTH_SCAN",
-        "android.permission.ACCESS_FINE_LOCATION",
-        "android.permission.ACCESS_COARSE_LOCATION"
+        "android.permission.BLUETOOTH_ADMIN",
+        "android.permission.BLUETOOTH_CONNECT"
       ],
       "package": "com.anonymous.expocoraapp"
     },
@@ -51,12 +50,22 @@
       ],
       "expo-secure-store",
       [
-        "react-native-ble-manager",
+        "react-native-ble-plx",
         {
-          "neverForLocation": false,
-          "bluetoothPeripheralPermissionText": "Allow CORA to connect to readers.",
-          "bluetoothAlwaysPermissionText": "Allow CORA to find and connect to your reader devices.",
-          "fineLocationPermissionText": "Allow CORA to look for hardware nearby."
+          "isBackgroundEnabled": false,
+          "modes": ["peripheral", "central"],
+          "bluetoothAlwaysPermission": "Allow CORA-APP to connect to the CORA-READER.",
+          "bluetoothPeripheralPermission": "Allow CORA-APP to connect to the CORA-READER."
+        }
+      ],
+      "expo-build-properties",
+      "expo-dev-client",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "minSdkVersion": 24
+          }
         }
       ]
     ],
