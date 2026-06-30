@@ -1,12 +1,10 @@
 import { registerDeviceAPI } from "@/services/hardware";
 import { useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   FlatList,
-  NativeEventEmitter,
-  NativeModules,
   PermissionsAndroid,
   Platform,
   StyleSheet,
@@ -14,80 +12,56 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-//import BleManager, { Peripheral } from "react-native-ble-manager";
-
-const BleManagerModule = NativeModules.BleManager;
-const bleManagerEmitter = new NativeEventEmitter(BleManagerModule);
+// Import from react-native-ble-plx instead of react-native-ble-manager
+import { BleManager, Device } from "react-native-ble-plx";
 
 export default function RegisterDeviceScreen() {
   const router = useRouter();
   const [isScanning, setIsScanning] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
-  const [devices, setDevices] = useState<Peripheral[]>([]);
-  const [selectedDevice, setSelectedDevice] = useState<Peripheral | null>(null);
+  const [devices, setDevices] = useState<Device[]>([]);
+  const [selectedDevice, setSelectedDevice] = useState<Device | null>(null);
 
+  // 1. Instantiate the BleManager safely using useMemo
+  const bleManager = useMemo(() => new BleManager(), []);
+
+  // 2. Handle cleanup on unmount
   useEffect(() => {
-    BleManager.start({ showAlert: true })
-      .then(() => console.log("BleManager initialized standard module."))
-      .catch((err) => console.log("BleManager failed to start", err));
-
-    const discoverListener = bleManagerEmitter.addListener(
-      "BleManagerDiscoverPeripheral",
-      (peripheral: Peripheral) => {
-        // Show the device name if available, otherwise fall back to its MAC address/ID
-        const deviceName =
-          peripheral.name || peripheral.localName || "Unknown BLE Device";
-
-        setDevices((prevDevices) => {
-          if (!prevDevices.some((d) => d.id === peripheral.id)) {
-            // Create a normalized item so it renders correctly in the list
-            return [...prevDevices, { ...peripheral, name: deviceName }];
-          }
-          return prevDevices;
-        });
-      },
-    );
-
-    const stopListener = bleManagerEmitter.addListener(
-      "BleManagerStopScan",
-      () => {
-        setIsScanning(false);
-        console.log("Bluetooth scan completed.");
-      },
-    );
-
     return () => {
-      discoverListener.remove();
-      stopListener.remove();
+      bleManager.stopDeviceScan();
+      bleManager.destroy();
     };
-  }, []);
+  }, [bleManager]);
 
+  // 3. Request permissions adapted for PLX (matching your working implementation)
   const requestPermissions = async (): Promise<boolean> => {
-    if (Platform.OS === "android" && Platform.Version >= 31) {
-      const scanGranted = await PermissionsAndroid.request(
-        PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN,
-      );
-      const connectGranted = await PermissionsAndroid.request(
-        PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT,
-      );
-      return (
-        scanGranted === PermissionsAndroid.RESULTS.GRANTED &&
-        connectGranted === PermissionsAndroid.RESULTS.GRANTED
-      );
-    } else if (Platform.OS === "android") {
-      const locationGranted = await PermissionsAndroid.request(
-        PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
-      );
-      return locationGranted === PermissionsAndroid.RESULTS.GRANTED;
+    if (Platform.OS === "android") {
+      const apiLevel = Platform.Version;
+      if (apiLevel >= 31) {
+        const result = await PermissionsAndroid.requestMultiple([
+          PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN,
+          PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT,
+        ]);
+        return (
+          result["android.permission.BLUETOOTH_CONNECT"] ===
+            PermissionsAndroid.RESULTS.GRANTED &&
+          result["android.permission.BLUETOOTH_SCAN"] ===
+            PermissionsAndroid.RESULTS.GRANTED
+        );
+      } else {
+        const result = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+        );
+        return result === PermissionsAndroid.RESULTS.GRANTED;
+      }
     }
-    return true; // iOS handles permission prompts automatically on trigger
+    return true; // iOS handles automatically
   };
 
-  // Start Scan Trigger Function
+  // 4. Start Scan Trigger Function
   const startBluetoothScan = async () => {
     if (isScanning || isRegistering) return;
 
-    // 1. Check/Request OS Permissions first
     const hasPermission = await requestPermissions();
     if (!hasPermission) {
       Alert.alert(
@@ -97,55 +71,55 @@ export default function RegisterDeviceScreen() {
       return;
     }
 
-    // 2. NEW: Forcefully prompt the user to turn on Bluetooth if it is off (Android)
-    if (Platform.OS === "android") {
-      try {
-        await BleManager.enableBluetooth();
-      } catch (err) {
-        Alert.alert(
-          "Bluetooth Disabled",
-          "Please turn on Bluetooth to connect to your CORA device.",
-        );
-        return;
-      }
-    }
-
     setDevices([]); // Reset list
     setSelectedDevice(null);
     setIsScanning(true);
 
-    // 3. Trigger the BLE Scan
-    BleManager.scan({
-      serviceUUIDs: [], // Empty array means scan for everything
-      seconds: 5,
-      allowDuplicates: false,
-    })
-      .then(() => {
-        console.log("Scan started successfully...");
-      })
-      .catch((err) => {
-        // NEW: Show a visual alert if the OS blocks the scan
-        console.error("Scan Error:", err);
+    // react-native-ble-plx uses a direct callback loop for streaming discovered peripherals
+    bleManager.startDeviceScan(null, null, (error, device) => {
+      if (error) {
+        console.error("Scan Error:", error.message);
         setIsScanning(false);
         Alert.alert(
-          "Scanner Blocked",
-          "Make sure your phone's Location (GPS) toggle is turned ON. Android requires GPS to discover BLE devices.",
+          "Scanner Error",
+          error.message ||
+            "Make sure your location services and Bluetooth are turned ON.",
         );
-      });
+        return;
+      }
+
+      if (device && device.name) {
+        setDevices((prevDevices) => {
+          if (!prevDevices.some((d) => d.id === device.id)) {
+            return [...prevDevices, device];
+          }
+          return prevDevices;
+        });
+      }
+    });
+
+    // Automatically stop scan after 5 seconds (matching original behavior)
+    setTimeout(() => {
+      bleManager.stopDeviceScan();
+      setIsScanning(false);
+      console.log("Bluetooth scan completed.");
+    }, 5000);
   };
 
-  // Backend Registration Pipeline Action
+  // 5. Backend Registration Pipeline Action
   const handleDeviceRegistration = async () => {
     if (!selectedDevice) {
       Alert.alert("Error", "Please select a device from the list first.");
       return;
     }
 
+    // Stop scanning if it's still running before proceeding
+    bleManager.stopDeviceScan();
+    setIsScanning(false);
     setIsRegistering(true);
 
-    // Pass the actual real Bluetooth hardware values discovered to your backend!
     const hardwareImplantId = selectedDevice.name || "CORA-UNKNOWN";
-    const hardwareReaderId = selectedDevice.id; // Mac Address or UUID string
+    const hardwareReaderId = selectedDevice.id; // Mac Address (Android) or UUID (iOS)
 
     const result = await registerDeviceAPI(hardwareImplantId, hardwareReaderId);
     setIsRegistering(false);
