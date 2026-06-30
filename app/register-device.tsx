@@ -14,7 +14,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import BleManager, { Peripheral } from "react-native-ble-manager";
+//import BleManager, { Peripheral } from "react-native-ble-manager";
 
 const BleManagerModule = NativeModules.BleManager;
 const bleManagerEmitter = new NativeEventEmitter(BleManagerModule);

@@ -20,7 +20,7 @@ export default function HomeScreen() {
         onPress={() => router.push("/register-device")}
       ></Button>
       <Button
-        title="Registe Device"
+        title="BLE Package Receiver"
         onPress={() => router.push("/debug-ble")}
       ></Button>
     </View>
